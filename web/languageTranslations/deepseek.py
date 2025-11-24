@@ -14,7 +14,6 @@ import os
 DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions'
 
 DEEPSEEK_KEY = os.getenv('Deepseek_api_key')
-print(DEEPSEEK_KEY)
 if not DEEPSEEK_KEY:
     raise EnvironmentError('DEEPSEEK_KEY not set')
 
