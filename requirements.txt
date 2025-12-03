@@ -7,3 +7,11 @@ uvicorn
 requests
 
 pyinstaller
+
+pywin32
+winshell
+
+# infi.systray
+
+# pynput
+keyboard

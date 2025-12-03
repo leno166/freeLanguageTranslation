@@ -25,17 +25,15 @@ a = Analysis(
     # 资源文件
     datas=[
         # UI静态资源
-        ('ui-static', 'ui-static'),
+        ('ui', 'ui'),
     ],
 
     # 隐藏导入（解决打包后缺失模块的问题）
     hiddenimports=[
-        'fastapi',
-        'uvicorn',
         'pydantic',
         'webview',
-        'multiprocessing',
-        'web.languageTranslations.deepseek',
+        'web',
+        'modules'
     ],
 
     # 钩子脚本目录

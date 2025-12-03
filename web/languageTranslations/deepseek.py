@@ -94,5 +94,3 @@ def get(user_prompt: str) -> dict:
         maketrans = str.maketrans('', '', "{}_[]\\/<>")
 
         return content_str.translate(maketrans)
-
-

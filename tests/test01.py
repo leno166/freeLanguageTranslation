@@ -6,225 +6,78 @@
 @描述: 
 @版本: Version 1.0
 """
-import webview
 
-html = """
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            overflow: hidden;
-            height: 100vh;
-            background: #f0f0f0;
-        }
-
-        /* 顶部标题栏：可拖动 */
-        #titlebar {
-            height: 32px;
-            background: #2d2d2d;
-            color: white;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 10px;
-            user-select: none;
-            -webkit-app-region: drag; /* ← 关键：允许拖动（Win/macOS） */
-        }
-
-        #titlebar-buttons {
-            -webkit-app-region: no-drag; /* 按钮区域不可拖 */
-        }
-
-        .btn {
-            width: 30px;
-            height: 24px;
-            margin-left: 6px;
-            background: transparent;
-            color: white;
-            border: none;
-            cursor: pointer;
-            font-size: 12px;
-        }
-
-        .btn:hover {
-            background: #555;
-        }
-
-        #content {
-            padding: 20px;
-            height: calc(100vh - 32px);
-        }
-
-        /* 四周拉伸区（透明，覆盖边缘） */
-        .resize-handle {
-            position: absolute;
-            background: transparent;
-            z-index: 9999;
-        }
-        #top, #bottom { left: 0; width: 100%; height: 6px; }
-        #left, #right { top: 0; height: 100%; width: 6px; }
-        #top { top: 0; cursor: ns-resize; }
-        #bottom { bottom: 0; cursor: ns-resize; }
-        #left { left: 0; cursor: ew-resize; }
-        #right { right: 0; cursor: ew-resize; }
-        #top-left { top: 0; left: 0; width: 8px; height: 8px; cursor: nw-resize; }
-        #top-right { top: 0; right: 0; width: 8px; height: 8px; cursor: ne-resize; }
-        #bottom-left { bottom: 0; left: 0; width: 8px; height: 8px; cursor: sw-resize; }
-        #bottom-right { bottom: 0; right: 0; width: 8px; height: 8px; cursor: se-resize; }
-    </style>
-</head>
-<body>
-    <!-- 拉伸手柄 -->
-    <div class="resize-handle" id="top"></div>
-    <div class="resize-handle" id="bottom"></div>
-    <div class="resize-handle" id="left"></div>
-    <div class="resize-handle" id="right"></div>
-    <div class="resize-handle" id="top-left"></div>
-    <div class="resize-handle" id="top-right"></div>
-    <div class="resize-handle" id="bottom-left"></div>
-    <div class="resize-handle" id="bottom-right"></div>
-
-    <!-- 标题栏 -->
-    <div id="titlebar">
-        <span>我的应用</span>
-        <div id="titlebar-buttons">
-            <button class="btn" onclick="pywebview.api.minimize()">—</button>
-            <button class="btn" onclick="pywebview.api.close()">×</button>
-        </div>
-    </div>
-
-    <div id="content">
-        <h2>无边框窗口 + 拖拽 + 拉伸</h2>
-        <p>尝试拖动顶部移动窗口，或拖动边缘/角落调整大小。</p>
-    </div>
-
-    <script>
-        // 边缘拉伸逻辑
-        const handles = [
-            'top', 'bottom', 'left', 'right',
-            'top-left', 'top-right', 'bottom-left', 'bottom-right'
-        ];
-
-        let isResizing = false;
-        let currentHandle = null;
-        let startX, startY, startWidth, startHeight, startLeft, startTop;
-
-        function setupResize(handleId) {
-            const el = document.getElementById(handleId);
-            el.addEventListener('mousedown', (e) => {
-                isResizing = true;
-                currentHandle = handleId;
-                startX = e.screenX;
-                startY = e.screenY;
-
-                const rect = pywebview.api.getWindowRect();
-                startWidth = rect.width;
-                startHeight = rect.height;
-                startLeft = rect.x;
-                startTop = rect.y;
-
-                e.preventDefault();
-                document.body.style.cursor = getComputedStyle(el).cursor;
-                document.addEventListener('mousemove', doResize);
-                document.addEventListener('mouseup', stopResize);
-            });
-        }
-
-        function doResize(e) {
-            if (!isResizing) return;
-            const dx = e.screenX - startX;
-            const dy = e.screenY - startY;
-
-            let newWidth = startWidth;
-            let newHeight = startHeight;
-            let newLeft = startLeft;
-            let newTop = startTop;
-
-            if (currentHandle.includes('right')) {
-                newWidth = Math.max(200, startWidth + dx);
-            }
-            if (currentHandle.includes('left')) {
-                newWidth = Math.max(200, startWidth - dx);
-                newLeft = startLeft + (startWidth - newWidth);
-            }
-            if (currentHandle.includes('bottom')) {
-                newHeight = Math.max(150, startHeight + dy);
-            }
-            if (currentHandle.includes('top')) {
-                newHeight = Math.max(150, startHeight - dy);
-                newTop = startTop + (startHeight - newHeight);
-            }
-
-            pywebview.api.resize(newWidth, newHeight, newLeft, newTop);
-        }
-
-        function stopResize() {
-            isResizing = false;
-            currentHandle = null;
-            document.body.style.cursor = '';
-            document.removeEventListener('mousemove', doResize);
-            document.removeEventListener('mouseup', stopResize);
-        }
-
-        // 初始化所有拉伸手柄
-        handles.forEach(setupResize);
-    </script>
-</body>
-</html>
-"""
+import ctypes
+from ctypes import wintypes, POINTER
+import sys
 
 
-class Api:
-    def __init__(self):
-        self.window = None
+# === 1. 定义 GUID 结构 ===
+class GUID(ctypes.Structure):
+    _fields_ = [
+        ("Data1", wintypes.DWORD),
+        ("Data2", wintypes.WORD),
+        ("Data3", wintypes.WORD),
+        ("Data4", wintypes.BYTE * 8)
+    ]
 
-    def set_window(self, window):
-        self.window = window
+    def __init__(self, guid_str=None):
+        if guid_str:
+            self.from_string(guid_str)
 
-    def close(self):
-        if self.window:
-            self.window.destroy()
+    def from_string(self, guid_str):
+        # 移除大括号和连字符，只保留32个十六进制字符
+        s = guid_str.strip('{}').replace('-', '').upper()
+        if len(s) != 32:
+            raise ValueError(f"Invalid GUID format: {guid_str}")
+        self.Data1 = int(s[0:8], 16)
+        self.Data2 = int(s[8:12], 16)
+        self.Data3 = int(s[12:16], 16)
+        for i in range(8):
+            self.Data4[i] = int(s[16 + 2 * i: 16 + 2 * i + 2], 16)
 
-    def minimize(self):
-        if self.window:
-            self.window.minimize()
+    def __str__(self):
+        return f"{{{self.Data1:08X}-{self.Data2:04X}-{self.Data3:04X}-{self.Data4[0]:02X}{self.Data4[1]:02X}-{self.Data4[2]:02X}{self.Data4[3]:02X}{self.Data4[4]:02X}{self.Data4[5]:02X}{self.Data4[6]:02X}{self.Data4[7]:02X}}}"
 
-    def getWindowRect(self):
-        """返回当前窗口位置和尺寸"""
-        if self.window:
-            return {
-                "x": self.window.x,
-                "y": self.window.y,
-                "width": self.window.width,
-                "height": self.window.height,
-            }
-        return {"x": 0, "y": 0, "width": 800, "height": 600}
+# 加载系统 DLL
+shell32 = ctypes.windll.shell32
+ole32 = ctypes.windll.ole32
 
-    def resize(self, width, height, x, y):
-        if self.window:
-            # 注意：pywebview 的 resize 是 (width, height)，move 是 (x, y)
-            self.window.resize(width, height)
-            self.window.move(x, y)
+# 定义 FOLDERID 常量（常用的一部分，可按需扩展）
+# https://learn.microsoft.com/en-us/windows/win32/shell/knownfolderid
+FOLDERID_STARTUP = GUID("{82A5EA35-D9CD-47C5-9629-E15D2F714E6E}")
+
+# 函数声明
+SHGetKnownFolderPath = shell32.SHGetKnownFolderPath
+SHGetKnownFolderPath.argtypes = [
+    POINTER(GUID),  # rfid
+    wintypes.DWORD,  # dwFlags
+    wintypes.HANDLE,  # hToken (可为 None)
+    POINTER(wintypes.LPWSTR)  # ppszPath
+]
+SHGetKnownFolderPath.restype = ctypes.HRESULT
+
+# CoTaskMemFree 用于释放返回的路径内存
+ole32.CoTaskMemFree.argtypes = [wintypes.LPVOID]
+ole32.CoTaskMemFree.restype = None
 
 
-if __name__ == '__main__':
-    api = Api()
-    window = webview.create_window(
-        title='Resizable Frameless App',
-        html=html,
-        js_api=api,
-        frameless=True,
-        width=800,
-        height=600,
-        easy_drag=False  # 必须设为 False，否则会干扰自定义拖动
+def get_known_folder_path(folder_id):
+    path_ptr = wintypes.LPWSTR()
+    hr = SHGetKnownFolderPath(
+        ctypes.byref(folder_id),
+        0,  # KF_FLAG_DEFAULT
+        None,  # 当前用户
+        ctypes.byref(path_ptr)
     )
-    api.set_window(window)
-    webview.start(debug=True)
+    if hr != 0:
+        raise OSError(f"SHGetKnownFolderPath failed with HRESULT: 0x{hr:08X}")
+
+    try:
+        return path_ptr.value
+    finally:
+        ole32.CoTaskMemFree(path_ptr)
+
+
+if __name__ == "__main__":
+    print(get_known_folder_path(FOLDERID_STARTUP))
